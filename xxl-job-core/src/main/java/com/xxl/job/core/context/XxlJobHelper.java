@@ -157,6 +157,9 @@ public class XxlJobHelper {
                 .append(appendLog!=null?appendLog:"");
         String formatAppendLog = stringBuffer.toString();
 
+        // 输出日志到标准输出，适配只能采集标准输出中日志的环境
+        System.out.println(formatAppendLog);
+
         // appendlog
         String logFileName = xxlJobContext.getJobLogFileName();
 

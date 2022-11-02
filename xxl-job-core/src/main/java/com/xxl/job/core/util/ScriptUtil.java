@@ -57,6 +57,7 @@ public class ScriptUtil {
         FileOutputStream fileOutputStream = null;
         Thread inputThread = null;
         Thread errThread = null;
+        Process process = null;
         try {
             // file
             fileOutputStream = new FileOutputStream(logFile, true);
@@ -73,7 +74,8 @@ public class ScriptUtil {
             String[] cmdarrayFinal = cmdarray.toArray(new String[cmdarray.size()]);
 
             // process-exec
-            final Process process = Runtime.getRuntime().exec(cmdarrayFinal);
+            process = Runtime.getRuntime().exec(cmdarrayFinal);
+            Process finalProcess = process;
 
             // log-thread
             final FileOutputStream finalFileOutputStream = fileOutputStream;
@@ -81,7 +83,7 @@ public class ScriptUtil {
                 @Override
                 public void run() {
                     try {
-                        copy(process.getInputStream(), finalFileOutputStream, new byte[1024]);
+                        copy(finalProcess.getInputStream(), finalFileOutputStream, new byte[1024]);
                     } catch (IOException e) {
                         XxlJobHelper.log(e);
                     }
@@ -91,7 +93,7 @@ public class ScriptUtil {
                 @Override
                 public void run() {
                     try {
-                        copy(process.getErrorStream(), finalFileOutputStream, new byte[1024]);
+                        copy(finalProcess.getErrorStream(), finalFileOutputStream, new byte[1024]);
                     } catch (IOException e) {
                         XxlJobHelper.log(e);
                     }
@@ -108,6 +110,14 @@ public class ScriptUtil {
             errThread.join();
 
             return exitValue;
+        } catch (InterruptedException e) {
+            XxlJobHelper.log(e);
+
+            // 线程被中断时，根据不同的操作系统，发送不同的信号，可在脚本中捕获信号：
+            // windows: 调用 TerminateProcess 结束程序
+            // linux: 调用 kill 命令结束程序，并发送 SIGTERM 信号
+            process.destroy();
+            return -1;
         } catch (Exception e) {
             XxlJobHelper.log(e);
             return -1;
@@ -150,6 +160,9 @@ public class ScriptUtil {
                     total += res;
                     if (outputStream != null) {
                         outputStream.write(buffer, 0, res);
+
+                        // 将脚本执行的日志打印到标准输出，适配只能采集标准输出中日志的环境
+                        System.out.print(new String(buffer, 0 , res));
                     }
                 }
             }
